@@ -1,4 +1,4 @@
-module github.com/bootdotdev/learn-pub-sub-starter
+module github.com/amayakmt/pub-sub-peril
 
 go 1.27.1
 
