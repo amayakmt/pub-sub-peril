@@ -21,6 +21,14 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Connected to RabbitMQ successfully")
 
+	// channel used for publishing
+	publishCh, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to create channel:", err)
+		return
+	}
+	defer publishCh.Close()
+
 	// welcome the client to the game
 	userName, err := gamelogic.ClientWelcome()
 	if err != nil {
@@ -35,7 +43,7 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
-		fmt.Sprintf("pause.%s", userName),
+		fmt.Sprintf("%s.%s", routing.PauseKey, userName),
 		routing.PauseKey,
 		pubsub.QueueTypeTransient,
 		handlerPause(gs),
@@ -45,21 +53,17 @@ func main() {
 		return
 	}
 
-	// declare and bind the "resume" queue to the direct exchange
-	ch, err := conn.Channel()
-	if err != nil {
-		fmt.Println("Failed to open channel:", err)
-		return
-	}
-	err = ch.QueueBind(
-		fmt.Sprintf("pause.%s", userName),
-		routing.ResumeKey,
-		routing.ExchangePerilDirect,
-		false,
-		nil,
+	// declare and bind the "move" queue to the direct exchange
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("move.%s", userName),
+		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
+		pubsub.QueueTypeTransient,
+		handlerMove(gs),
 	)
 	if err != nil {
-		fmt.Println("Failed to bind resume key:", err)
+		fmt.Println("Failed to declare and bind the move queue:", err)
 		return
 	}
 
@@ -80,10 +84,22 @@ func main() {
 
 		case "move":
 			fmt.Println("Moving units...")
-			_, err := gs.CommandMove(input)
+			mv, err := gs.CommandMove(input)
 			if err != nil {
 				fmt.Println("Failed to move units:", err)
+				continue
 			}
+			err = pubsub.PublishJSON(
+				publishCh,
+				routing.ExchangePerilTopic,
+				fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, userName),
+				mv,
+			)
+			if err != nil {
+				fmt.Println("Failed to publish move:", err)
+				continue
+			}
+			fmt.Println("Move published successfully")
 
 		case "status":
 			fmt.Println("Checking status...")

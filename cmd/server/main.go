@@ -33,7 +33,7 @@ func main() {
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
-		"game_logs.*",
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
 		pubsub.QueueTypeDurable,
 	)
 	if err != nil {
@@ -74,7 +74,7 @@ func main() {
 			err = pubsub.PublishJSON(
 				ch,
 				routing.ExchangePerilDirect,
-				routing.ResumeKey,
+				routing.PauseKey,
 				routing.PlayingState{
 					IsPaused: false,
 				},
