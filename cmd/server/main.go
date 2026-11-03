@@ -29,6 +29,18 @@ func main() {
 	}
 	defer ch.Close()
 
+	_, _, err = pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		"game_logs.*",
+		pubsub.QueueTypeDurable,
+	)
+	if err != nil {
+		fmt.Println("Failed to declare and bind the game log queue:", err)
+		return
+	}
+
 	// print the help as the server starts to see the commands the user of the REPL can use.
 	gamelogic.PrintServerHelp()
 
