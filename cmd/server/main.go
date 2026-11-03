@@ -74,7 +74,7 @@ func main() {
 			err = pubsub.PublishJSON(
 				ch,
 				routing.ExchangePerilDirect,
-				routing.PauseKey,
+				routing.ResumeKey,
 				routing.PlayingState{
 					IsPaused: false,
 				},

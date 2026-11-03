@@ -45,6 +45,24 @@ func main() {
 		return
 	}
 
+	// declare and bind the "resume" queue to the direct exchange
+	ch, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to open channel:", err)
+		return
+	}
+	err = ch.QueueBind(
+		fmt.Sprintf("pause.%s", userName),
+		routing.ResumeKey,
+		routing.ExchangePerilDirect,
+		false,
+		nil,
+	)
+	if err != nil {
+		fmt.Println("Failed to bind resume key:", err)
+		return
+	}
+
 	// main game loop
 	for {
 		input := gamelogic.GetInput()
