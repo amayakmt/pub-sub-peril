@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
 	gamelogic "github.com/amayakmt/pub-sub-peril/internal/gamelogic"
 	pubsub "github.com/amayakmt/pub-sub-peril/internal/pubsub"
@@ -49,9 +47,44 @@ func main() {
 	}
 	defer ch.Close()
 
-	// after declaring and binding the queue, the client should wait for a `Ctrl+C` signal to exit.
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	fmt.Println("Waiting for Ctrl+C to exit...")
-	<-sigChan
+	gs := gamelogic.NewGameState(userName)
+
+	for {
+		input := gamelogic.GetInput()
+		if len(input) == 0 {
+			continue
+		}
+
+		switch input[0] {
+		case "spawn":
+			fmt.Println("Spawning units...")
+			err := gs.CommandSpawn(input)
+			if err != nil {
+				fmt.Println("Failed to spawn units:", err)
+			}
+
+		case "move":
+			fmt.Println("Moving units...")
+			_, err := gs.CommandMove(input)
+			if err != nil {
+				fmt.Println("Failed to move units:", err)
+			}
+
+		case "status":
+			fmt.Println("Checking status...")
+			gs.CommandStatus()
+
+		case "help":
+			gamelogic.PrintClientHelp()
+
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Println("Unknown command. Type 'help' for a list of commands.")
+		}
+	}
 }
