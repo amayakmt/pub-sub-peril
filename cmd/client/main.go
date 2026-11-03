@@ -27,28 +27,25 @@ func main() {
 		fmt.Println("Failed to welcome client:", err)
 		return
 	}
+
+	// create game state
+	gs := gamelogic.NewGameState(userName)
+
 	// declare and bind the "pause" queue to the direct exchange
-	// exchange: peril_direct from a constant in the internal/routing package
-	// queueName: pause.username where `username` is the user's input.
-	//            the `pause` section of the name is the routing key constant in the
-	//            internal/routing package and is joined by a `.`
-	// routing key: pause (this is a constant in the `internal/routing` package)
-	// queueType: transient
-	ch, _, err := pubsub.DeclareAndBind(
+	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
 		fmt.Sprintf("pause.%s", userName),
 		routing.PauseKey,
 		pubsub.QueueTypeTransient,
+		handlerPause(gs),
 	)
 	if err != nil {
 		fmt.Println("Failed to declare and bind the pause queue:", err)
 		return
 	}
-	defer ch.Close()
 
-	gs := gamelogic.NewGameState(userName)
-
+	// main game loop
 	for {
 		input := gamelogic.GetInput()
 		if len(input) == 0 {
