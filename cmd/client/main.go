@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/amayakmt/pub-sub-peril/internal/gamelogic"
 	"github.com/amayakmt/pub-sub-peril/internal/pubsub"
@@ -74,7 +75,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
 		pubsub.QueueTypeDurable,
-		handlerWar(gs),
+		handlerWar(gs, publishCh),
 	)
 	if err != nil {
 		fmt.Println("Failed to declare and bind the war queue:", err)
@@ -171,24 +172,48 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyM
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(rw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
-		outcome, _, _ := gs.HandleWar(rw)
+		outcome, winner, loser := gs.HandleWar(rw)
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
-			return pubsub.Ack
+			msg := fmt.Sprintf("%s won a war against %s", winner, loser)
+			fmt.Println(msg)
+			return PublishGameLog(ch, gs.GetUsername(), msg)
 		case gamelogic.WarOutcomeYouWon:
-			return pubsub.Ack
+			msg := fmt.Sprintf("%s won a war against %s", winner, loser)
+			fmt.Println(msg)
+			return PublishGameLog(ch, gs.GetUsername(), msg)
 		case gamelogic.WarOutcomeDraw:
-			return pubsub.Ack
+			msg := fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
+			fmt.Println(msg)
+			return PublishGameLog(ch, gs.GetUsername(), msg)
 		default:
 			fmt.Printf("Unknown war outcome: %v", outcome)
 			return pubsub.NackDiscard
 		}
 	}
+}
+
+func PublishGameLog(ch *amqp.Channel, userName, message string) pubsub.AckType {
+	err := pubsub.PublishGob(
+		ch,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.%s", routing.GameLogSlug, userName),
+		routing.GameLog{
+			CurrentTime: time.Now(),
+			Message:     message,
+			Username:    userName,
+		},
+	)
+	if err != nil {
+		fmt.Println("Failed to publish game log:", err)
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
 }

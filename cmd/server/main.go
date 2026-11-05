@@ -29,12 +29,15 @@ func main() {
 	}
 	defer ch.Close()
 
-	_, _, err = pubsub.DeclareAndBind(
+	// subscribe to the game log queue
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		fmt.Sprintf("%s.*", routing.GameLogSlug),
 		pubsub.QueueTypeDurable,
+		handlerLog(),
+		pubsub.DecodeGob[routing.GameLog],
 	)
 	if err != nil {
 		fmt.Println("Failed to declare and bind the game log queue:", err)
@@ -95,5 +98,16 @@ func main() {
 		default:
 			fmt.Println("Unknown command. Type 'pause', 'resume', or 'quit'.")
 		}
+	}
+}
+
+func handlerLog() func(routing.GameLog) pubsub.AckType {
+	return func(gl routing.GameLog) pubsub.AckType {
+		defer fmt.Print("> ")
+		if err := gamelogic.WriteLog(gl); err != nil {
+			fmt.Println("Failed to write log:", err)
+			return pubsub.NackDiscard
+		}
+		return pubsub.Ack
 	}
 }
