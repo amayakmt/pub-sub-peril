@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	routing "github.com/amayakmt/pub-sub-peril/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -33,7 +34,9 @@ func DeclareAndBind(
 		!isDurable,
 		!isDurable,
 		false,
-		nil,
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+		},
 	)
 	if err != nil {
 		return nil, amqp.Queue{}, err
