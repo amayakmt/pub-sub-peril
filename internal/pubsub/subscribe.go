@@ -35,6 +35,10 @@ func SubscribeJSON[T any](
 	if err != nil {
 		return err
 	}
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return err
+	}
 	msgs, err := ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
 		return err
@@ -79,6 +83,10 @@ func SubscribeGob[T any](
 	}
 	// get a new channel of amqp.Delivery structs by using the channel.Consume method
 	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	err = ch.Qos(10, 0, false)
 	if err != nil {
 		return err
 	}

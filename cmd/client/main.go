@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/amayakmt/pub-sub-peril/internal/gamelogic"
@@ -124,7 +125,28 @@ func main() {
 			gamelogic.PrintClientHelp()
 
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(input) < 2 {
+				fmt.Println("Usage: spam <number>")
+				return
+			}
+			num, err := strconv.Atoi(input[1])
+			if err != nil {
+				fmt.Println("Invalid number:", input[1])
+				return
+			}
+			for i := 0; i < num; i++ {
+				msg := gamelogic.GetMaliciousLog()
+				err = pubsub.PublishGob(
+					publishCh,
+					routing.ExchangePerilTopic,
+					fmt.Sprintf("%s.%s", routing.GameLogSlug, userName),
+					routing.GameLog{
+						CurrentTime: time.Now(),
+						Message:     msg,
+						Username:    userName,
+					},
+				)
+			}
 
 		case "quit":
 			gamelogic.PrintQuit()
